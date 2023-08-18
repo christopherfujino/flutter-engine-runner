@@ -83,6 +83,7 @@ class Build {
   late final List<Archive>? archives;
   // TODO drone_dimensions
   // TODO gclient_custom_vars
+  // TODO tests
 
   late final List<String>? gn;
   ({String config, List<String> targets})? ninja;
