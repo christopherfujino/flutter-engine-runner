@@ -74,7 +74,7 @@ class Build {
     final ninjaMap = src['ninja'] as Map<String, Object?>?;
     if (ninjaMap != null) {
       final config = ninjaMap['config'] as String;
-      final targets = (ninjaMap['targets'] as List<Object?>).cast<String>();
+      final targets = ninjaMap['targets'] == null ? <String>[] : (ninjaMap['targets'] as List<Object?>).cast<String>();
       ninja = (config: config, targets: targets);
     }
     name = src['name'] as String;
