@@ -35,6 +35,8 @@ Future<void> main(List<String> args) async {
   if (gclientSynxExitCode != 0) {
     throw Exception('gclient sync failed');
   }
+
+  // TODO build UI for presenting all targets, and selecting
   await builderConfigs.first.builds.first.run();
   print('done');
 }
