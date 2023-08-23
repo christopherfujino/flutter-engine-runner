@@ -25,16 +25,16 @@ Future<void> main(List<String> args) async {
   builderConfigs.forEach(print);
 
   // TODO cache this
-  //final gclientSynxExitCode = await (await io.Process.start(
-  //  'gclient',
-  //  const <String>['sync'],
-  //  workingDirectory: engine.path,
-  //  mode: io.ProcessStartMode.inheritStdio,
-  //))
-  //    .exitCode;
-  //if (gclientSynxExitCode != 0) {
-  //  throw Exception('gclient sync failed');
-  //}
+  final gclientSynxExitCode = await (await io.Process.start(
+    'gclient',
+    const <String>['sync'],
+    workingDirectory: engine.path,
+    mode: io.ProcessStartMode.inheritStdio,
+  ))
+      .exitCode;
+  if (gclientSynxExitCode != 0) {
+    throw Exception('gclient sync failed');
+  }
   await builderConfigs.first.builds.first.run();
   print('done');
 }
