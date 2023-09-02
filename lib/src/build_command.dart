@@ -35,7 +35,8 @@ class BuildCommand extends Command<int> {
       for (final build in config.builds) {
         for (final target in build.ninja.targets) {
           fields.add(
-              '$targetName$fieldSeparator${build.name}$fieldSeparator${target}');
+            '$targetName$fieldSeparator${build.name}$fieldSeparator${target}',
+          );
         }
       }
     }
