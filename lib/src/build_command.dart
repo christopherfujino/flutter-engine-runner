@@ -41,7 +41,7 @@ class BuildCommand extends Command<int> {
       }
     }
 
-    final process = await io.Process.start('fzf', <String>[]);
+    final process = await io.Process.start('fzf', const <String>[]);
     String? selectedField;
     final stdoutSub = process.stdout
         .transform(const convert.Utf8Decoder())
@@ -49,7 +49,10 @@ class BuildCommand extends Command<int> {
         .listen((String line) {
       if (selectedField != null) {
         throw StateError(
-          'got multiple STDOUT lines:\nAlready have: "$selectedField"\nGot: "$line"',
+          '''
+got multiple STDOUT lines:
+Already have: "$selectedField"
+Got: "$line"''',
         );
       }
       selectedField = line;
