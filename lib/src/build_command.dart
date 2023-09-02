@@ -1,10 +1,11 @@
-import 'dart:convert' as convert;
 import 'dart:io' as io;
 
 import 'package:args/command_runner.dart';
 import 'package:engine_build_configs/engine_build_configs.dart';
 import 'package:file/file.dart';
 import 'package:file/local.dart';
+
+import 'fzf.dart';
 
 const fs = LocalFileSystem();
 const fieldSeparator = ' - ';
@@ -29,18 +30,6 @@ class BuildCommand extends Command<int> {
       errors: errors,
       buildConfigsDir: ciBuilderPath,
     ).configs;
-    final fields = <String>[];
-    for (final entry in configs.entries) {
-      final targetName = entry.key;
-      final config = entry.value;
-      for (final build in config.builds) {
-        for (final target in build.ninja.targets) {
-          fields.add(
-            '$targetName$fieldSeparator${build.name}$fieldSeparator${target}',
-          );
-        }
-      }
-    }
 
     if (errors.isNotEmpty) {
       throw StateError(
@@ -48,7 +37,13 @@ class BuildCommand extends Command<int> {
       );
     }
 
-    final selectedField = await _fzf(fields);
+    final targetName = await fzfSingle(configs.keys);
+    final config = configs[targetName]!;
+    final buildName = await fzfSingle(config.builds.map((build) => build.name));
+    final build = config.builds.firstWhere((build) => build.name == buildName);
+    final ninjaTargetNames = await fzfMulti(build.ninja.targets);
+
+    print('You chose $targetName -> $buildName -> $ninjaTargetNames');
 
     final gclientSynxExitCode = await (await io.Process.start(
       'gclient',
@@ -61,14 +56,8 @@ class BuildCommand extends Command<int> {
       throw Exception('gclient sync failed');
     }
 
-    final fieldTuple = selectedField.split(fieldSeparator);
-    final targetName = fieldTuple[0];
-    final buildName = fieldTuple[1];
-    final build = configs[targetName]!.builds.firstWhere((build) {
-      return build.name == buildName;
-    });
     await _gn(build.gn, engine);
-    await _ninja(build.ninja, engine);
+    await _ninja(ninjaTargetNames, build.ninja, engine);
     print('done');
     return 0;
   }
@@ -88,12 +77,12 @@ class BuildCommand extends Command<int> {
     }
   }
 
-  Future<void> _ninja(BuildNinja ninja, Directory engine) async {
+  Future<void> _ninja(List<String> targets, BuildNinja ninja, Directory engine) async {
     final args = <String>[
       '-C',
       engine.parent.childDirectory('out').childDirectory(ninja.config).path,
       // TODO -j
-      ...(ninja.targets),
+      ...targets,
     ];
     final ninjaProcess = await io.Process.start(
       'ninja',
@@ -108,36 +97,4 @@ class BuildCommand extends Command<int> {
     }
     print('ninja finished');
   }
-}
-
-Future<String> _fzf(List<String> input) async {
-  final process = await io.Process.start('fzf', const <String>[]);
-  String? selectedField;
-  final stdoutSub = process.stdout
-      .transform(const convert.Utf8Decoder())
-      .transform(const convert.LineSplitter())
-      .listen((String line) {
-    if (selectedField != null) {
-      throw StateError(
-        '''
-got multiple STDOUT lines:
-Already have: "$selectedField"
-Got: "$line"''',
-      );
-    }
-    selectedField = line;
-  });
-  final stderrSub =
-      process.stderr.listen((List<int> bytes) => io.stderr.add(bytes));
-  process.stdin.add(input.join('\n').codeUnits);
-  await Future.wait<void>(<Future<void>>[
-    stdoutSub.asFuture<void>(),
-    stderrSub.asFuture<void>(),
-    process.exitCode,
-  ]);
-  if (selectedField == null) {
-    // this probably means user quit fzf with ESC
-    throw StateError('Never received any STDOUT from fzf');
-  }
-  return selectedField!;
 }
