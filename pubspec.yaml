@@ -16,7 +16,10 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   args: ^2.4.2
-  file: ^7.0.0
+  engine_build_configs:
+    # TODO don't hard-code this
+    path: ../engine/src/flutter/tools/pkg/engine_build_configs
+  file: ^6.1.4
   path: ^1.8.3
 
 dev_dependencies:
