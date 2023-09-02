@@ -14,6 +14,7 @@ class BuildCommand extends Command<int> {
   final String description = 'Build engine targets.';
 
   Future<int> run() async {
+    // TODO persist to disk
     if (argResults!.rest.length != 1) {
       throw Exception('Usage: fer build /path/to/engine/src/flutter');
     }
@@ -41,34 +42,14 @@ class BuildCommand extends Command<int> {
       }
     }
 
-    final process = await io.Process.start('fzf', const <String>[]);
-    String? selectedField;
-    final stdoutSub = process.stdout
-        .transform(const convert.Utf8Decoder())
-        .transform(const convert.LineSplitter())
-        .listen((String line) {
-      if (selectedField != null) {
-        throw StateError(
-          '''
-got multiple STDOUT lines:
-Already have: "$selectedField"
-Got: "$line"''',
-        );
-      }
-      selectedField = line;
-    });
-    final stderrSub =
-        process.stderr.listen((List<int> bytes) => io.stderr.add(bytes));
-    process.stdin.add(fields.join('\n').codeUnits);
-    await Future.wait<void>(<Future<void>>[
-      stdoutSub.asFuture<void>(),
-      stderrSub.asFuture<void>(),
-      process.exitCode,
-    ]);
-    if (selectedField == null) {
-      // this probably means user quit fzf with ESC
-      throw StateError('Never received any STDOUT from fzf');
+    if (errors.isNotEmpty) {
+      throw StateError(
+        'found errors parsing build configs: ${errors.join('\n')}',
+      );
     }
+
+    final selectedField = await _fzf(fields);
+
     final gclientSynxExitCode = await (await io.Process.start(
       'gclient',
       const <String>['sync'],
@@ -80,7 +61,7 @@ Got: "$line"''',
       throw Exception('gclient sync failed');
     }
 
-    final fieldTuple = selectedField!.split(fieldSeparator);
+    final fieldTuple = selectedField.split(fieldSeparator);
     final targetName = fieldTuple[0];
     final buildName = fieldTuple[1];
     final build = configs[targetName]!.builds.firstWhere((build) {
@@ -127,4 +108,36 @@ Got: "$line"''',
     }
     print('ninja finished');
   }
+}
+
+Future<String> _fzf(List<String> input) async {
+  final process = await io.Process.start('fzf', const <String>[]);
+  String? selectedField;
+  final stdoutSub = process.stdout
+      .transform(const convert.Utf8Decoder())
+      .transform(const convert.LineSplitter())
+      .listen((String line) {
+    if (selectedField != null) {
+      throw StateError(
+        '''
+got multiple STDOUT lines:
+Already have: "$selectedField"
+Got: "$line"''',
+      );
+    }
+    selectedField = line;
+  });
+  final stderrSub =
+      process.stderr.listen((List<int> bytes) => io.stderr.add(bytes));
+  process.stdin.add(input.join('\n').codeUnits);
+  await Future.wait<void>(<Future<void>>[
+    stdoutSub.asFuture<void>(),
+    stderrSub.asFuture<void>(),
+    process.exitCode,
+  ]);
+  if (selectedField == null) {
+    // this probably means user quit fzf with ESC
+    throw StateError('Never received any STDOUT from fzf');
+  }
+  return selectedField!;
 }
