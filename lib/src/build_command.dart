@@ -25,15 +25,14 @@ class BuildCommand extends Command<int> {
     if (!ciBuilderPath.existsSync()) {
       throw Exception('Expected ${ciBuilderPath.path} to exist');
     }
-    final errors = <String>[];
-    final configs = BuildConfigLoader(
-      errors: errors,
+    final loader = BuildConfigLoader(
       buildConfigsDir: ciBuilderPath,
-    ).configs;
+    );
+    final configs = loader.configs;
 
-    if (errors.isNotEmpty) {
+    if (loader.errors.isNotEmpty) {
       throw StateError(
-        'found errors parsing build configs: ${errors.join('\n')}',
+        'found errors parsing build configs: ${loader.errors.join('\n')}',
       );
     }
 
@@ -58,7 +57,6 @@ class BuildCommand extends Command<int> {
 
     await _gn(build.gn, engine);
     await _ninja(ninjaTargetNames, build.ninja, engine);
-    print('done');
     return 0;
   }
 
@@ -95,6 +93,5 @@ class BuildCommand extends Command<int> {
     if (ninjaExit != 0) {
       throw Exception('ninja failed');
     }
-    print('ninja finished');
   }
 }
